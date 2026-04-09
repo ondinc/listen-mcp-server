@@ -6,7 +6,7 @@
     "build"
   ],
   "bin": {
-    "listen-mcp-server": "./build/index.js"
+    "listen-mcp-server": "build/index.js"
   },
   "scripts": {
     "build": "tsc",
