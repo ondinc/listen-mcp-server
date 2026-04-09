@@ -2,6 +2,9 @@
   "name": "@ondinc/listen-mcp-server",
   "version": "1.0.0",
   "main": "build/index.js",
+  "files": [
+    "build"
+  ],
   "bin": {
     "listen-mcp-server": "./build/index.js"
   },
