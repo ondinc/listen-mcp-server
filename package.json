@@ -1,0 +1,20 @@
+{
+  "name": "@ondinc/listen-mcp-server",
+  "version": "1.0.0",
+  "main": "build/index.js",
+  "bin": {
+    "listen-mcp-server": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "typescript": "^5.9.3"
+  }
+}
