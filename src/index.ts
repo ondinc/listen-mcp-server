@@ -129,6 +129,193 @@ server.tool("get_episode_transcript",
   }
 );
 
+// 4. get_me
+server.tool("get_me",
+  "ご自身のプロフィール情報を取得します",
+  {},
+  async () => {
+    const query = `
+      query {
+        me {
+          id
+          name
+          username
+          description
+          followingPodcastsCount
+          imageUrl
+        }
+      }
+    `;
+    const data = await fetchGraphQL(query);
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.me, null, 2) }]
+    };
+  }
+);
+
+// 5. get_following_podcasts
+server.tool("get_following_podcasts",
+  "フォローしているポッドキャストの一覧を取得します",
+  {},
+  async () => {
+    const query = `
+      query {
+        me {
+          followingPodcasts(first: 20) {
+            data {
+              id
+              title
+              description
+              latestEpisodePubDate
+            }
+          }
+        }
+      }
+    `;
+    const data = await fetchGraphQL(query);
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.me.followingPodcasts.data, null, 2) }]
+    };
+  }
+);
+
+// 6. get_playback_history
+server.tool("get_playback_history",
+  "最近再生したエピソードの履歴を取得します",
+  {},
+  async () => {
+    const query = `
+      query {
+        me {
+          playbackHistoryEpisodes(first: 20) {
+            data {
+              id
+              title
+              duration
+              podcast {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    `;
+    const data = await fetchGraphQL(query);
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.me.playbackHistoryEpisodes?.data || [], null, 2) }]
+    };
+  }
+);
+
+// 7. search_podcasts
+server.tool("search_podcasts",
+  "キーワードからポッドキャストを検索します",
+  { query: z.string().describe("検索キーワード") },
+  async ({ query }) => {
+    const gqlQuery = `
+      query($query: String!) {
+        searchPodcasts(query: $query) {
+          id
+          title
+          description
+          author
+        }
+      }
+    `;
+    const data = await fetchGraphQL(gqlQuery, { query });
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.searchPodcasts, null, 2) }]
+    };
+  }
+);
+
+// 8. search_users
+server.tool("search_users",
+  "キーワードからユーザーを検索します",
+  { query: z.string().describe("検索キーワード") },
+  async ({ query }) => {
+    const gqlQuery = `
+      query($query: String!) {
+        searchUsers(query: $query) {
+          id
+          name
+          username
+          description
+        }
+      }
+    `;
+    const data = await fetchGraphQL(gqlQuery, { query });
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.searchUsers, null, 2) }]
+    };
+  }
+);
+
+// 9. get_podcast
+server.tool("get_podcast",
+  "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
+  { podcastId: z.string().describe("ポッドキャストのID") },
+  async ({ podcastId }) => {
+    const query = `
+      query($id: String!) {
+        podcast(id: $id) {
+          id
+          title
+          description
+          author
+          latestEpisodePubDate
+          visibility
+          episodes(first: 10) {
+            data {
+              id
+              title
+              pubDate
+            }
+          }
+          owners {
+            id
+            name
+            username
+          }
+        }
+      }
+    `;
+    const data = await fetchGraphQL(query, { id: podcastId });
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }]
+    };
+  }
+);
+
+// 10. get_episode
+server.tool("get_episode",
+  "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
+  { episodeId: z.string().describe("エピソードのID") },
+  async ({ episodeId }) => {
+    const query = `
+      query($id: String!) {
+        episode(id: $id) {
+          id
+          title
+          description
+          pubDate
+          duration
+          commentsCount
+          mentionersCount
+          podcast {
+            id
+            title
+          }
+        }
+      }
+    `;
+    const data = await fetchGraphQL(query, { id: episodeId });
+    return {
+      content: [{ type: "text", text: JSON.stringify(data.episode, null, 2) }]
+    };
+  }
+);
 
 async function main() {
   const transport = new StdioServerTransport();
