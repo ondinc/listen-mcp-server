@@ -32,7 +32,7 @@ AIから以下の情報にアクセスできます。
 - **`get_podcast` / `get_episode`**  
   任意のポッドキャストやエピソードの「詳細情報（ホスト、概要、公開日時など）」を取得します。
 
-- **`get_my_episode_review`**  
+- **`get_my_episode_reviews`**  
   ご自身が書いた「感想（EpisodeReview）」を最新順に一覧取得します。引用機能を用いた場合、引用されたテキスト（`quoteText`）を含めて取得します。
 
 ---

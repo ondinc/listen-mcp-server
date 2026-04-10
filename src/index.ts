@@ -317,8 +317,8 @@ server.tool("get_episode",
   }
 );
 
-// 11. get_my_episode_review
-server.tool("get_my_episode_review",
+// 11. get_my_episode_reviews
+server.tool("get_my_episode_reviews",
   "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
   {},
   async () => {
