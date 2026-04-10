@@ -319,29 +319,32 @@ server.tool("get_episode",
 
 // 11. get_my_episode_review
 server.tool("get_my_episode_review",
-  "エピソードに対して自分が書いた感想（EpisodeReview）を取得します。引用機能を用いた場合、引用されたテキスト（quoteText）も含まれます。",
-  { episodeId: z.string().describe("エピソードのID") },
-  async ({ episodeId }) => {
+  "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
+  {},
+  async () => {
     const query = `
-      query($id: String!) {
-        episode(id: $id) {
-          id
-          title
-          myReview {
-            id
-            content
-            quoteText
-            startTime
-            status
-            createdAt
-            updatedAt
+      query {
+        me {
+          episodeReviews(first: 20) {
+            data {
+              id
+              content
+              quoteText
+              startTime
+              status
+              createdAt
+              episode {
+                id
+                title
+              }
+            }
           }
         }
       }
     `;
-    const data = await fetchGraphQL(query, { id: episodeId });
+    const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.episode?.myReview || { message: "No review found for this episode." }, null, 2) }]
+      content: [{ type: "text", text: JSON.stringify(data.me?.episodeReviews?.data || [], null, 2) }]
     };
   }
 );
