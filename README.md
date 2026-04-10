@@ -81,6 +81,50 @@ Claude Desktopの設定ファイル（Macの場合は `~/Library/Application Sup
   LISTEN_GRAPHQL_URL=https://listen.style/graphql
   ```
 
+### Codexでの設定
+
+CLIから直接追加するか、設定ファイル（`config.toml`）を編集します。
+
+**方法1：CLIから追加する（推奨）**
+ターミナルを開き、以下のコマンドの `【コピーしたAPIトークン】` の部分をご自身のものに書き換えて実行してください。
+```bash
+codex mcp add listen-mcp --env LISTEN_API_TOKEN=【コピーしたAPIトークン】 --env LISTEN_GRAPHQL_URL=https://listen.style/graphql -- npx -y @ondinc/listen-mcp-server
+```
+
+**方法2：設定ファイル（config.toml）を編集する**
+`~/.codex/config.toml` を開き、以下の内容を追記してください。
+```toml
+[mcp_servers.listen-mcp]
+command = "npx"
+args = ["-y", "@ondinc/listen-mcp-server"]
+
+[mcp_servers.listen-mcp.env]
+LISTEN_API_TOKEN = "【コピーしたAPIトークン】"
+LISTEN_GRAPHQL_URL = "https://listen.style/graphql"
+```
+
+### Antigravityでの設定
+
+Antigravityの設定ファイル（`~/.gemini/antigravity/mcp_config.json`）を開き、`mcpServers` オブジェクト内に以下を追記してエージェントを再読み込みしてください。
+
+```json
+{
+  "mcpServers": {
+    "listen-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@ondinc/listen-mcp-server"
+      ],
+      "env": {
+        "LISTEN_API_TOKEN": "【コピーしたAPIトークン】",
+        "LISTEN_GRAPHQL_URL": "https://listen.style/graphql"
+      }
+    }
+  }
+}
+```
+
 ---
 
 ## 🛠 開発者向け (ローカルでの起動・デバッグ)
