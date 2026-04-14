@@ -70,13 +70,17 @@ server.tool("get_my_podcasts",
 // 2. get_podcast_episodes
 server.tool("get_podcast_episodes",
   "指定したポッドキャストのエピソード一覧を取得します",
-  { podcastId: z.string().describe("ポッドキャストのID") },
-  async ({ podcastId }) => {
+  { 
+    podcastId: z.string().describe("ポッドキャストのID"),
+    status: z.enum(["published", "draft", "scheduled"]).optional().describe("取得するエピソードのステータス（デフォルトはpublished）")
+  },
+  async ({ podcastId, status = "published" }) => {
+    const statusEnum = status.toUpperCase();
     const query = `
-      query($id: String!) {
+      query($id: String!, $status: EpisodeStatus) {
         podcast(id: $id) {
           title
-          episodes(first: 50) {
+          episodes(first: 50, status: $status) {
             data {
               id
               title
@@ -88,7 +92,7 @@ server.tool("get_podcast_episodes",
         }
       }
     `;
-    const data = await fetchGraphQL(query, { id: podcastId });
+    const data = await fetchGraphQL(query, { id: podcastId, status: statusEnum });
     return {
       content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }]
     };
