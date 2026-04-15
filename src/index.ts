@@ -40,9 +40,8 @@ async function fetchGraphQL(query: string, variables: any = {}) {
 }
 
 // 1. my_podcasts
-server.tool("get_my_podcasts",
-  "ご自身のポッドキャスト一覧を取得します",
-  {},
+server.registerTool("get_my_podcasts",
+  { description: "ご自身のポッドキャスト一覧を取得します" },
   async () => {
     const query = `
       query {
@@ -68,11 +67,12 @@ server.tool("get_my_podcasts",
 );
 
 // 2. get_podcast_episodes
-server.tool("get_podcast_episodes",
-  "指定したポッドキャストのエピソード一覧を取得します",
-  { 
-    podcastId: z.string().describe("ポッドキャストのID"),
-    status: z.enum(["published", "draft", "scheduled"]).optional().describe("取得するエピソードのステータス（デフォルトはpublished）")
+server.registerTool("get_podcast_episodes",
+  { description: "指定したポッドキャストのエピソード一覧を取得します",
+    inputSchema: z.object({
+      podcastId: z.string().describe("ポッドキャストのID"),
+      status: z.enum(["published", "draft", "scheduled"]).optional().describe("取得するエピソードのステータス（デフォルトはpublished）")
+    })
   },
   async ({ podcastId, status = "published" }) => {
     const statusEnum = status.toUpperCase();
@@ -100,11 +100,12 @@ server.tool("get_podcast_episodes",
 );
 
 // 3. get_episode_transcript
-server.tool("get_episode_transcript",
-  "指定したエピソードの文字起こしを取得します",
-  { 
-    episodeId: z.string().describe("エピソードのID"),
-    format: z.enum(["txt", "vtt", "srt"]).optional().describe("出力フォーマット(txt, vtt, srt)。デフォルトはtxt")
+server.registerTool("get_episode_transcript",
+  { description: "指定したエピソードの文字起こしを取得します",
+    inputSchema: z.object({
+      episodeId: z.string().describe("エピソードのID"),
+      format: z.enum(["txt", "vtt", "srt"]).optional().describe("出力フォーマット(txt, vtt, srt)。デフォルトはtxt")
+    })
   },
   async ({ episodeId, format = "txt" }) => {
     // ユーザー指定のフォーマットに応じて取得するGraphQLフィールドを変える
@@ -134,9 +135,8 @@ server.tool("get_episode_transcript",
 );
 
 // 4. get_me
-server.tool("get_me",
-  "ご自身のプロフィール情報を取得します",
-  {},
+server.registerTool("get_me",
+  { description: "ご自身のプロフィール情報を取得します" },
   async () => {
     const query = `
       query {
@@ -158,9 +158,8 @@ server.tool("get_me",
 );
 
 // 5. get_following_podcasts
-server.tool("get_following_podcasts",
-  "フォローしているポッドキャストの一覧を取得します",
-  {},
+server.registerTool("get_following_podcasts",
+  { description: "フォローしているポッドキャストの一覧を取得します" },
   async () => {
     const query = `
       query {
@@ -184,9 +183,8 @@ server.tool("get_following_podcasts",
 );
 
 // 6. get_playback_history
-server.tool("get_playback_history",
-  "最近再生したエピソードの履歴を取得します",
-  {},
+server.registerTool("get_playback_history",
+  { description: "最近再生したエピソードの履歴を取得します" },
   async () => {
     const query = `
       query {
@@ -213,9 +211,12 @@ server.tool("get_playback_history",
 );
 
 // 7. search_podcasts
-server.tool("search_podcasts",
-  "キーワードからポッドキャストを検索します",
-  { query: z.string().describe("検索キーワード") },
+server.registerTool("search_podcasts",
+  { description: "キーワードからポッドキャストを検索します",
+    inputSchema: z.object({
+      query: z.string().describe("検索キーワード")
+    })
+  },
   async ({ query }) => {
     const gqlQuery = `
       query($query: String!) {
@@ -235,9 +236,12 @@ server.tool("search_podcasts",
 );
 
 // 8. search_users
-server.tool("search_users",
-  "キーワードからユーザーを検索します",
-  { query: z.string().describe("検索キーワード") },
+server.registerTool("search_users",
+  { description: "キーワードからユーザーを検索します",
+    inputSchema: z.object({
+      query: z.string().describe("検索キーワード")
+    })
+  },
   async ({ query }) => {
     const gqlQuery = `
       query($query: String!) {
@@ -257,9 +261,12 @@ server.tool("search_users",
 );
 
 // 9. get_podcast
-server.tool("get_podcast",
-  "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
-  { podcastId: z.string().describe("ポッドキャストのID") },
+server.registerTool("get_podcast",
+  { description: "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
+    inputSchema: z.object({
+      podcastId: z.string().describe("ポッドキャストのID")
+    })
+  },
   async ({ podcastId }) => {
     const query = `
       query($id: String!) {
@@ -293,9 +300,12 @@ server.tool("get_podcast",
 );
 
 // 10. get_episode
-server.tool("get_episode",
-  "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
-  { episodeId: z.string().describe("エピソードのID") },
+server.registerTool("get_episode",
+  { description: "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
+    inputSchema: z.object({
+      episodeId: z.string().describe("エピソードのID")
+    })
+  },
   async ({ episodeId }) => {
     const query = `
       query($id: String!) {
@@ -322,9 +332,10 @@ server.tool("get_episode",
 );
 
 // 11. get_my_episode_reviews
-server.tool("get_my_episode_reviews",
-  "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
-  {},
+server.registerTool("get_my_episode_reviews",
+  { description: "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
+    inputSchema: z.object({})
+  },
   async () => {
     const query = `
       query {

@@ -10,14 +10,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "test": "python ./tests/test_index.py"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^20.19.39",
+    "@types/node": "^24.12.2",
     "typescript": "^5.9.3"
   }
 }
