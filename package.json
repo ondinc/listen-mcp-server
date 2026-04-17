@@ -9,13 +9,14 @@
     "listen-mcp-server": "build/index.js"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit --extendedDiagnostics",
     "build": "tsc",
     "start": "node build/index.js",
     "test": "python ./tests/test_index.py"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^4.3.6"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",

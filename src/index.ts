@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const server = new McpServer({
   name: "listen-mcp-server",
@@ -69,10 +69,10 @@ server.registerTool("get_my_podcasts",
 // 2. get_podcast_episodes
 server.registerTool("get_podcast_episodes",
   { description: "指定したポッドキャストのエピソード一覧を取得します",
-    inputSchema: z.object({
+    inputSchema: {
       podcastId: z.string().describe("ポッドキャストのID"),
       status: z.enum(["published", "draft", "scheduled"]).optional().describe("取得するエピソードのステータス（デフォルトはpublished）")
-    })
+    }
   },
   async ({ podcastId, status = "published" }) => {
     const statusEnum = status.toUpperCase();
@@ -102,10 +102,10 @@ server.registerTool("get_podcast_episodes",
 // 3. get_episode_transcript
 server.registerTool("get_episode_transcript",
   { description: "指定したエピソードの文字起こしを取得します",
-    inputSchema: z.object({
+    inputSchema: {
       episodeId: z.string().describe("エピソードのID"),
       format: z.enum(["txt", "vtt", "srt"]).optional().describe("出力フォーマット(txt, vtt, srt)。デフォルトはtxt")
-    })
+    }
   },
   async ({ episodeId, format = "txt" }) => {
     // ユーザー指定のフォーマットに応じて取得するGraphQLフィールドを変える
@@ -213,9 +213,9 @@ server.registerTool("get_playback_history",
 // 7. search_podcasts
 server.registerTool("search_podcasts",
   { description: "キーワードからポッドキャストを検索します",
-    inputSchema: z.object({
+    inputSchema: {
       query: z.string().describe("検索キーワード")
-    })
+    }
   },
   async ({ query }) => {
     const gqlQuery = `
@@ -238,9 +238,9 @@ server.registerTool("search_podcasts",
 // 8. search_users
 server.registerTool("search_users",
   { description: "キーワードからユーザーを検索します",
-    inputSchema: z.object({
+    inputSchema: {
       query: z.string().describe("検索キーワード")
-    })
+    }
   },
   async ({ query }) => {
     const gqlQuery = `
@@ -263,9 +263,9 @@ server.registerTool("search_users",
 // 9. get_podcast
 server.registerTool("get_podcast",
   { description: "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
-    inputSchema: z.object({
+    inputSchema: {
       podcastId: z.string().describe("ポッドキャストのID")
-    })
+    }
   },
   async ({ podcastId }) => {
     const query = `
@@ -302,9 +302,9 @@ server.registerTool("get_podcast",
 // 10. get_episode
 server.registerTool("get_episode",
   { description: "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
-    inputSchema: z.object({
+    inputSchema: {
       episodeId: z.string().describe("エピソードのID")
-    })
+    }
   },
   async ({ episodeId }) => {
     const query = `
@@ -334,7 +334,7 @@ server.registerTool("get_episode",
 // 11. get_my_episode_reviews
 server.registerTool("get_my_episode_reviews",
   { description: "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
-    inputSchema: z.object({})
+    inputSchema: {}
   },
   async () => {
     const query = `
