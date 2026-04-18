@@ -1,6 +1,20 @@
 import pino from "pino";
 
-const logLevel = process.env.LOG_LEVEL ?? "info";
+const allowedLogLevels = new Set([
+  "fatal",
+  "error",
+  "warn",
+  "info",
+  "debug",
+  "trace",
+  "silent",
+]);
+
+const normalizedLogLevel = process.env.LOG_LEVEL?.trim().toLowerCase();
+const logLevel =
+  normalizedLogLevel && allowedLogLevels.has(normalizedLogLevel)
+    ? normalizedLogLevel
+    : "info";
 const usePretty = logLevel === "debug" || logLevel === "trace";
 
 const transport = usePretty
