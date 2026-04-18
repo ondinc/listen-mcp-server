@@ -23,7 +23,10 @@ print("Resolved MCP server path:", index_path)
 server_params = StdioServerParameters(
     command="node",
     args=[index_path],
-    env={"LISTEN_API_TOKEN": os.getenv("LISTEN_API_TOKEN", "")},
+    env={
+        "LISTEN_API_TOKEN": os.getenv("LISTEN_API_TOKEN", ""),
+        "LOG_LEVEL": os.getenv("LOG_LEVEL", "info"),
+    },
 )
 
 
