@@ -28,7 +28,7 @@ type ToolLoggerParams = Record<string, unknown>;
 function makeToolLogger(
   toolName: string,
   baseRequestId?: string,
-  params?: Record<string, unknown>,
+  params?: ToolLoggerParams,
 ) {
   return logger.child({
     requestId: baseRequestId ?? crypto.randomUUID(),
@@ -40,7 +40,7 @@ function makeToolLogger(
 // 共通のGraphQL fetch関数
 async function fetchGraphQL(
   query: string,
-  variables: Record<string, unknown> = {},
+  variables: ToolLoggerParams = {},
 ) {
   const response = await fetch(GRAPHQL_URL, {
     method: "POST",
