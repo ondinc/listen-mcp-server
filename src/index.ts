@@ -1,49 +1,111 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import { z } from "zod/v3";
+import { logger } from "./lib/logger.js";
+import {
+  assertNonNull,
+  createHttpError,
+  createValidationError,
+  normalizeUnknownError,
+  toUserMessage,
+} from "./lib/appError.js";
 
 const server = new McpServer({
   name: "listen-mcp-server",
-  version: "1.0.0"
+  version: "1.0.0",
 });
 
+logger.info("Starting listen-mcp-server...");
+
 const API_TOKEN = process.env.LISTEN_API_TOKEN;
-const GRAPHQL_URL = process.env.LISTEN_GRAPHQL_URL || "https://listen.style/graphql";
+const GRAPHQL_URL =
+  process.env.LISTEN_GRAPHQL_URL || "https://listen.style/graphql";
 
 if (!API_TOKEN) {
-  console.error("Error: LISTEN_API_TOKEN environment variable is required");
+  logger.error(
+    { missingEnv: "LISTEN_API_TOKEN" },
+    "required environment variable is missing",
+  );
   process.exit(1);
 }
 
-// 共通のGraphQL fetch関数
-async function fetchGraphQL(query: string, variables: any = {}) {
-  const response = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_TOKEN}`
-    },
-    body: JSON.stringify({ query, variables })
+type ToolLoggerParams = Record<string, unknown>;
+
+function makeToolLogger(
+  toolName: string,
+  baseRequestId?: string,
+  params?: ToolLoggerParams,
+) {
+  return logger.child({
+    requestId: baseRequestId ?? crypto.randomUUID(),
+    toolName,
+    ...params,
   });
+}
 
-  if (!response.ok) {
-    throw new Error(`GraphQL API HTTP error: ${response.status}`);
+// 共通のGraphQL fetch関数
+async function fetchGraphQL(query: string, variables: ToolLoggerParams = {}) {
+  try {
+    const response = await fetch(GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_TOKEN}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      const appError = createHttpError(
+        `GraphQL API returned HTTP ${response.status}`,
+        response.status,
+        {
+          statusText: response.statusText,
+          url: GRAPHQL_URL,
+          details: { operation: "fetchGraphQL" },
+        },
+      );
+
+      logger.error({ err: appError }, appError.message);
+      throw appError;
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      const appError = createValidationError(
+        "GraphQL response contains errors",
+        {
+          details: {
+            operation: "fetchGraphQL",
+            graphqlErrors: result.errors,
+          },
+        },
+      );
+
+      logger.error({ err: appError }, appError.message);
+      throw appError;
+    }
+
+    return result.data;
+  } catch (error: unknown) {
+    const appError = normalizeUnknownError(error, {
+      operation: "fetchGraphQL",
+      details: { url: GRAPHQL_URL },
+    });
+
+    logger.error({ err: appError }, appError.message);
+    throw appError;
   }
-
-  const result = await response.json();
-  if (result.errors) {
-    throw new Error(`GraphQL Error: ${JSON.stringify(result.errors)}`);
-  }
-
-  return result.data;
 }
 
 // 1. my_podcasts
-server.tool("get_my_podcasts",
-  "ご自身のポッドキャスト一覧を取得します",
-  {},
+server.registerTool(
+  "get_my_podcasts",
+  { description: "ご自身のポッドキャスト一覧を取得します" },
   async () => {
+    const log = makeToolLogger("get_my_podcasts");
+    log.info("fetching my podcasts");
     const query = `
       query {
         me {
@@ -62,19 +124,32 @@ server.tool("get_my_podcasts",
     `;
     const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.me.verifiedPodcasts.data, null, 2) }]
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data.me.verifiedPodcasts.data, null, 2),
+        },
+      ],
     };
-  }
+  },
 );
 
 // 2. get_podcast_episodes
-server.tool("get_podcast_episodes",
-  "指定したポッドキャストのエピソード一覧を取得します",
-  { 
-    podcastId: z.string().describe("ポッドキャストのID"),
-    status: z.enum(["published", "draft", "scheduled"]).optional().describe("取得するエピソードのステータス（デフォルトはpublished）")
+server.registerTool(
+  "get_podcast_episodes",
+  {
+    description: "指定したポッドキャストのエピソード一覧を取得します",
+    inputSchema: {
+      podcastId: z.string().describe("ポッドキャストのID"),
+      status: z
+        .enum(["published", "draft", "scheduled"])
+        .optional()
+        .describe("取得するエピソードのステータス（デフォルトはpublished）"),
+    },
   },
   async ({ podcastId, status = "published" }) => {
+    const log = makeToolLogger("get_podcast_episodes");
+    log.info("fetching podcast episodes");
     const statusEnum = status.toUpperCase();
     const query = `
       query($id: String!, $status: EpisodeStatus) {
@@ -92,21 +167,35 @@ server.tool("get_podcast_episodes",
         }
       }
     `;
-    const data = await fetchGraphQL(query, { id: podcastId, status: statusEnum });
+    const data = await fetchGraphQL(query, {
+      id: podcastId,
+      status: statusEnum,
+    });
     return {
-      content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }]
+      content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }],
     };
-  }
+  },
 );
 
 // 3. get_episode_transcript
-server.tool("get_episode_transcript",
-  "指定したエピソードの文字起こしを取得します",
-  { 
-    episodeId: z.string().describe("エピソードのID"),
-    format: z.enum(["txt", "vtt", "srt"]).optional().describe("出力フォーマット(txt, vtt, srt)。デフォルトはtxt")
+server.registerTool(
+  "get_episode_transcript",
+  {
+    description: "指定したエピソードの文字起こしを取得します",
+    inputSchema: {
+      episodeId: z.string().describe("エピソードのID"),
+      format: z
+        .enum(["txt", "vtt", "srt"])
+        .optional()
+        .describe("出力フォーマット(txt, vtt, srt)。デフォルトはtxt"),
+    },
   },
   async ({ episodeId, format = "txt" }) => {
+    const log = makeToolLogger("get_episode_transcript", undefined, {
+      episodeId,
+      format,
+    });
+    log.info("fetching episode transcript");
     // ユーザー指定のフォーマットに応じて取得するGraphQLフィールドを変える
     let transcriptField = "transcriptTxt";
     if (format === "vtt") transcriptField = "transcriptVtt";
@@ -121,23 +210,41 @@ server.tool("get_episode_transcript",
       }
     `;
     const data = await fetchGraphQL(query, { id: episodeId });
-    const transcript = data.episode?.[transcriptField];
-    
+    const episode = assertNonNull(
+      data.episode,
+      "Episode is missing in response",
+      {
+        field: "episode",
+        details: { episodeId, format },
+      },
+    );
+
+    const transcript = episode[transcriptField];
+
     if (!transcript) {
-       return { content: [{ type: "text", text: "Transcript is not available for this episode." }] };
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Transcript is not available for this episode.",
+          },
+        ],
+      };
     }
 
     return {
-      content: [{ type: "text", text: transcript }]
+      content: [{ type: "text", text: transcript }],
     };
-  }
+  },
 );
 
 // 4. get_me
-server.tool("get_me",
-  "ご自身のプロフィール情報を取得します",
-  {},
+server.registerTool(
+  "get_me",
+  { description: "ご自身のプロフィール情報を取得します" },
   async () => {
+    const log = makeToolLogger("get_me");
+    log.info("fetching my profile");
     const query = `
       query {
         me {
@@ -152,16 +259,18 @@ server.tool("get_me",
     `;
     const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.me, null, 2) }]
+      content: [{ type: "text", text: JSON.stringify(data.me, null, 2) }],
     };
-  }
+  },
 );
 
 // 5. get_following_podcasts
-server.tool("get_following_podcasts",
-  "フォローしているポッドキャストの一覧を取得します",
-  {},
+server.registerTool(
+  "get_following_podcasts",
+  { description: "フォローしているポッドキャストの一覧を取得します" },
   async () => {
+    const log = makeToolLogger("get_following_podcasts");
+    log.info("fetching following podcasts");
     const query = `
       query {
         me {
@@ -178,16 +287,23 @@ server.tool("get_following_podcasts",
     `;
     const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.me.followingPodcasts.data, null, 2) }]
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data.me.followingPodcasts.data, null, 2),
+        },
+      ],
     };
-  }
+  },
 );
 
 // 6. get_playback_history
-server.tool("get_playback_history",
-  "最近再生したエピソードの履歴を取得します",
-  {},
+server.registerTool(
+  "get_playback_history",
+  { description: "最近再生したエピソードの履歴を取得します" },
   async () => {
+    const log = makeToolLogger("get_playback_history");
+    log.info("fetching playback history");
     const query = `
       query {
         me {
@@ -207,16 +323,32 @@ server.tool("get_playback_history",
     `;
     const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.me.playbackHistoryEpisodes?.data || [], null, 2) }]
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            data.me.playbackHistoryEpisodes?.data || [],
+            null,
+            2,
+          ),
+        },
+      ],
     };
-  }
+  },
 );
 
 // 7. search_podcasts
-server.tool("search_podcasts",
-  "キーワードからポッドキャストを検索します",
-  { query: z.string().describe("検索キーワード") },
+server.registerTool(
+  "search_podcasts",
+  {
+    description: "キーワードからポッドキャストを検索します",
+    inputSchema: {
+      query: z.string().describe("検索キーワード"),
+    },
+  },
   async ({ query }) => {
+    const log = makeToolLogger("search_podcasts", undefined, { query });
+    log.info("searching podcasts");
     const gqlQuery = `
       query($query: String!) {
         searchPodcasts(query: $query) {
@@ -229,16 +361,25 @@ server.tool("search_podcasts",
     `;
     const data = await fetchGraphQL(gqlQuery, { query });
     return {
-      content: [{ type: "text", text: JSON.stringify(data.searchPodcasts, null, 2) }]
+      content: [
+        { type: "text", text: JSON.stringify(data.searchPodcasts, null, 2) },
+      ],
     };
-  }
+  },
 );
 
 // 8. search_users
-server.tool("search_users",
-  "キーワードからユーザーを検索します",
-  { query: z.string().describe("検索キーワード") },
+server.registerTool(
+  "search_users",
+  {
+    description: "キーワードからユーザーを検索します",
+    inputSchema: {
+      query: z.string().describe("検索キーワード"),
+    },
+  },
   async ({ query }) => {
+    const log = makeToolLogger("search_users", undefined, { query });
+    log.info("searching users");
     const gqlQuery = `
       query($query: String!) {
         searchUsers(query: $query) {
@@ -251,16 +392,26 @@ server.tool("search_users",
     `;
     const data = await fetchGraphQL(gqlQuery, { query });
     return {
-      content: [{ type: "text", text: JSON.stringify(data.searchUsers, null, 2) }]
+      content: [
+        { type: "text", text: JSON.stringify(data.searchUsers, null, 2) },
+      ],
     };
-  }
+  },
 );
 
 // 9. get_podcast
-server.tool("get_podcast",
-  "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
-  { podcastId: z.string().describe("ポッドキャストのID") },
+server.registerTool(
+  "get_podcast",
+  {
+    description:
+      "指定したIDのポッドキャストの詳細情報（ホストなど）を取得します",
+    inputSchema: {
+      podcastId: z.string().describe("ポッドキャストのID"),
+    },
+  },
   async ({ podcastId }) => {
+    const log = makeToolLogger("get_podcast", undefined, { podcastId });
+    log.info("fetching podcast");
     const query = `
       query($id: String!) {
         podcast(id: $id) {
@@ -287,16 +438,24 @@ server.tool("get_podcast",
     `;
     const data = await fetchGraphQL(query, { id: podcastId });
     return {
-      content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }]
+      content: [{ type: "text", text: JSON.stringify(data.podcast, null, 2) }],
     };
-  }
+  },
 );
 
 // 10. get_episode
-server.tool("get_episode",
-  "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
-  { episodeId: z.string().describe("エピソードのID") },
+server.registerTool(
+  "get_episode",
+  {
+    description:
+      "指定したIDのエピソードの詳細情報（メタデータやコメント数など）を取得します",
+    inputSchema: {
+      episodeId: z.string().describe("エピソードのID"),
+    },
+  },
   async ({ episodeId }) => {
+    const log = makeToolLogger("get_episode", undefined, { episodeId });
+    log.info("fetching episode");
     const query = `
       query($id: String!) {
         episode(id: $id) {
@@ -316,16 +475,22 @@ server.tool("get_episode",
     `;
     const data = await fetchGraphQL(query, { id: episodeId });
     return {
-      content: [{ type: "text", text: JSON.stringify(data.episode, null, 2) }]
+      content: [{ type: "text", text: JSON.stringify(data.episode, null, 2) }],
     };
-  }
+  },
 );
 
 // 11. get_my_episode_reviews
-server.tool("get_my_episode_reviews",
-  "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
-  {},
+server.registerTool(
+  "get_my_episode_reviews",
+  {
+    description:
+      "自分が書いたエピソードの感想（EpisodeReview）を最新順で一覧取得します。引用されたテキスト（quoteText）も含まれます。",
+    inputSchema: {},
+  },
   async () => {
+    const log = makeToolLogger("get_my_episode_reviews");
+    log.info("fetching my episode reviews");
     const query = `
       query {
         me {
@@ -348,9 +513,14 @@ server.tool("get_my_episode_reviews",
     `;
     const data = await fetchGraphQL(query);
     return {
-      content: [{ type: "text", text: JSON.stringify(data.me?.episodeReviews?.data || [], null, 2) }]
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data.me?.episodeReviews?.data || [], null, 2),
+        },
+      ],
     };
-  }
+  },
 );
 
 async function main() {
@@ -359,7 +529,12 @@ async function main() {
   console.error("listen-mcp-server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
+main().catch((error: unknown) => {
+  const appError = normalizeUnknownError(error, {
+    operation: "main",
+  });
+
+  logger.error({ err: appError }, appError.message);
+  console.error(toUserMessage(appError, "ja"));
   process.exit(1);
 });
