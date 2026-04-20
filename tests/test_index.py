@@ -3,13 +3,16 @@ from enum import Enum
 from colorama import init, Fore
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from dotenv import load_dotenv
 
 import os
 import json
 import unittest
 
-load_dotenv()
+from pathlib import Path
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 init(autoreset=True)
 
 # print current directory
