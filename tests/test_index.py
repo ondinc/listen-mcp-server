@@ -3,11 +3,13 @@ from enum import Enum
 from colorama import init, Fore
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from dotenv import load_dotenv
 
 import os
 import json
 import unittest
 
+load_dotenv()
 init(autoreset=True)
 
 # print current directory
