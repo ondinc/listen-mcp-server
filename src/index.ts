@@ -3,6 +3,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod/v3";
 import { logger } from "./lib/logger.js";
+import {
+  assertNonNull,
+  createHttpError,
+  createValidationError,
+  normalizeUnknownError,
+  toUserMessage,
+} from "./lib/appError.js";
 
 const server = new McpServer({
   name: "listen-mcp-server",
@@ -38,34 +45,58 @@ function makeToolLogger(
 }
 
 // 共通のGraphQL fetch関数
-async function fetchGraphQL(
-  query: string,
-  variables: ToolLoggerParams = {},
-) {
-  const response = await fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_TOKEN}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+async function fetchGraphQL(query: string, variables: ToolLoggerParams = {}) {
+  try {
+    const response = await fetch(GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_TOKEN}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
 
-  if (!response.ok) {
-    logger.error(
-      { status: response.status, statusText: response.statusText },
-      "GraphQL API HTTP error",
-    );
-    throw new Error(`GraphQL API HTTP error: ${response.status}`);
+    if (!response.ok) {
+      const appError = createHttpError(
+        `GraphQL API returned HTTP ${response.status}`,
+        response.status,
+        {
+          statusText: response.statusText,
+          url: GRAPHQL_URL,
+          details: { operation: "fetchGraphQL" },
+        },
+      );
+
+      logger.error({ err: appError }, appError.message);
+      throw appError;
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      const appError = createValidationError(
+        "GraphQL response contains errors",
+        {
+          details: {
+            operation: "fetchGraphQL",
+            graphqlErrors: result.errors,
+          },
+        },
+      );
+
+      logger.error({ err: appError }, appError.message);
+      throw appError;
+    }
+
+    return result.data;
+  } catch (error: unknown) {
+    const appError = normalizeUnknownError(error, {
+      operation: "fetchGraphQL",
+      details: { url: GRAPHQL_URL },
+    });
+
+    logger.error({ err: appError }, appError.message);
+    throw appError;
   }
-
-  const result = await response.json();
-  if (result.errors) {
-    logger.error({ err: result.errors }, "failed to fetch GraphQL");
-    throw new Error(`GraphQL Error: ${JSON.stringify(result.errors)}`);
-  }
-
-  return result.data;
 }
 
 // 1. my_podcasts
@@ -179,7 +210,16 @@ server.registerTool(
       }
     `;
     const data = await fetchGraphQL(query, { id: episodeId });
-    const transcript = data.episode?.[transcriptField];
+    const episode = assertNonNull(
+      data.episode,
+      "Episode is missing in response",
+      {
+        field: "episode",
+        details: { episodeId, format },
+      },
+    );
+
+    const transcript = episode[transcriptField];
 
     if (!transcript) {
       return {
@@ -489,7 +529,12 @@ async function main() {
   console.error("listen-mcp-server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Server error:", error);
+main().catch((error: unknown) => {
+  const appError = normalizeUnknownError(error, {
+    operation: "main",
+  });
+
+  logger.error({ err: appError }, appError.message);
+  console.error(toUserMessage(appError, "ja"));
   process.exit(1);
 });
