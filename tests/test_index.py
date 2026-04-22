@@ -8,6 +8,11 @@ import os
 import json
 import unittest
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 init(autoreset=True)
 
 # print current directory
