@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ToolRegistrationServer } from "../src/tools/registerTools.js";
+import type { ToolRegistrationServer } from "../src/tools/toolTypes.js";
 import { registerTools } from "../src/tools/registerTools.js";
 
 describe("src/tools/registerTools.ts", () => {

@@ -1,11 +1,9 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolDeps } from "./toolTypes.js";
 import { registerMeTools } from "./meTools.js";
 import { registerPodcastTools } from "./podcastTools.js";
 import { registerEpisodeTools } from "./episodeTools.js";
 import { registerSearchTools } from "./searchTools.js";
-
-export type ToolRegistrationServer = Pick<McpServer, "registerTool">;
+import { ToolRegistrationServer } from "./toolTypes.js";
 
 export function registerTools(server: ToolRegistrationServer, deps: ToolDeps) {
   registerMeTools(server, deps);
