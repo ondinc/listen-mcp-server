@@ -3,7 +3,7 @@ import type { ToolDeps, ToolRegistrationServer } from "./toolTypes.js";
 
 export function registerPodcastTools(
   server: ToolRegistrationServer,
-  { fetchGraphQL, makeToolLogger }: ToolDeps,
+  { fetchGraphQL, makeToolLogger }: Pick<ToolDeps, "fetchGraphQL" | "makeToolLogger">,
 ) {
   server.registerTool(
     "get_podcast_episodes",

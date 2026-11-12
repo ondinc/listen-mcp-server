@@ -4,7 +4,7 @@ import type { ToolDeps, ToolRegistrationServer } from "./toolTypes.js";
 
 export function registerEpisodeTools(
   server: ToolRegistrationServer,
-  { fetchGraphQL, makeToolLogger }: ToolDeps,
+  { fetchGraphQL, makeToolLogger }: Pick<ToolDeps, "fetchGraphQL" | "makeToolLogger">,
 ) {
   server.registerTool(
     "get_episode_transcript",

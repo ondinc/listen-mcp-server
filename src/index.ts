@@ -5,6 +5,7 @@ import { logger } from "./lib/logger.js";
 import { normalizeUnknownError, toUserMessage } from "./lib/appError.js";
 import { registerTools } from "./tools/registerTools.js";
 import type { GraphQLVariables } from "./tools/toolTypes.js";
+import { fetchTranscriptSegments } from "./tools/transcriptSegmentsApi.js";
 import { fetchGraphQL } from "./tools/graphql.js";
 
 const pkg = require("../package.json");
@@ -31,6 +32,7 @@ function makeToolLogger(
 
 registerTools(server, {
   fetchGraphQL,
+  fetchTranscriptSegments,
   makeToolLogger,
 });
 

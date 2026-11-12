@@ -10,13 +10,14 @@ describe("src/tools/registerTools.ts", () => {
     };
     const mockDeps = {
       fetchGraphQL: vi.fn(),
+      fetchTranscriptSegments: vi.fn(),
       makeToolLogger: vi.fn(),
     };
 
     expect(() => registerTools(mockServer, mockDeps)).not.toThrow();
 
     const toolNames = registerToolMock.mock.calls.map((call) => call[0]);
-    expect(toolNames).toHaveLength(11);
+    expect(toolNames).toHaveLength(13);
     expect(toolNames).toEqual([
       "get_my_podcasts",
       "get_me",
@@ -27,6 +28,8 @@ describe("src/tools/registerTools.ts", () => {
       "get_podcast",
       "get_episode_transcript",
       "get_episode",
+      "get_episode_transcript_segments",
+      "update_episode_transcript_segments",
       "search_podcasts",
       "search_users",
     ]);
